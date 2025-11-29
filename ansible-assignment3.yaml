@@ -1,0 +1,59 @@
+---
+- name: Setup basic network services
+  hosts: routers
+  gather_facts: no
+  tasks:
+    - name: Setup NTP
+      ios_config: 
+        lines:
+          - ntp server 216.239.35.0 
+        save_when: modified
+
+    - name: Setup Logging
+      ios_config:
+        lines:
+          - logging buffered 16384
+          - logging console warnings
+        save_when: modified
+
+    - name: Setup Banner message
+      ios_config:
+        lines: 
+          - |
+              {% if role == "core" %}
+              banner motd "*** CORE ROUTER - Authorized Access Only ***"
+              {% else %}
+              banner motd "*** DISTRIBUTION ROUTER - Authorized Access Only ***"
+              {% endif %}
+        save_when: modified
+
+    - name: Change timezone
+      ios_config:
+        lines:
+          - clock timezone CST -6
+        save_when: modified
+
+    - name: get ntp 
+      ios_command:
+        commands: show ntp config
+      register: ntp_stat
+
+    - name: get logging
+      ios_command:
+        commands: show run | include logging
+      register: logs
+
+    - name: get banner message
+      ios_command: 
+        commands: show run | include banner
+      register: banner_msg
+
+    - name: get timezone
+      ios_command:
+        commands: show clock
+      register: clock_tz
+
+    - name: Display info
+      debug:
+        msg: "{{ inventory_hostname }}: {{ ntp_stat.stdout_lines }} {{ logs.stdout_lines }} {{ banner_msg.stdout_lines }} {{ clock_tz.stdout_lines }}"
+
